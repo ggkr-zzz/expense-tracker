@@ -6,8 +6,8 @@
 //
 // It serves the repository on a random local port and uses a throwaway Chrome profile, so it
 // never sees your own browser data. Three passes:
-//   acceptance  the in-page run at tests/e2e/ (the known-answer walkthrough and failure cases)
-//   keyboard    add and delete an expense using only real key presses
+//   acceptance  the in-page run at tests/e2e/ (the PIN page, the known-answer walkthrough, failure cases)
+//   keyboard    enter the PIN, add and delete an expense, and lock again using only real key presses
 //   edge cases  the bare address and real clock, midnight passing, storage blocked by the browser
 // Set CHROME_BIN if Chrome is not in the usual place. Exit code 0 means everything passed.
 
@@ -17,6 +17,9 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { ACCESS_PIN } from "../../public/js/config.js";
+import { UNLOCKED_KEY } from "../../public/js/lock.js";
 
 const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const TODAY = "2026-04-08";
@@ -140,8 +143,12 @@ async function connect(endpoint) {
   };
 }
 
-/** Opens a tab and returns helpers bound to it. Problems the page reports are collected. */
-async function openTab(browser) {
+/**
+ * Opens a tab and returns helpers bound to it. Problems the page reports are collected.
+ * A new tab would start on the PIN page; `unlocked: true` marks it as already unlocked, for
+ * passes that are about something else.
+ */
+async function openTab(browser, { unlocked = true } = {}) {
   const { targetId } = await browser.send("Target.createTarget", { url: "about:blank" });
   const { sessionId } = await browser.send("Target.attachToTarget", { targetId, flatten: true });
   const send = (method, params) => browser.send(method, params, sessionId);
@@ -163,6 +170,11 @@ async function openTab(browser) {
   await send("Runtime.enable");
   await send("Log.enable");
   await send("Emulation.setFocusEmulationEnabled", { enabled: true });
+  if (unlocked) {
+    await send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `try { sessionStorage.setItem(${JSON.stringify(UNLOCKED_KEY)}, "yes"); } catch {}`,
+    });
+  }
 
   async function evaluate(expression) {
     const { result, exceptionDetails } = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
@@ -199,7 +211,7 @@ async function openTab(browser) {
 
 /** The in-page acceptance run: tests/e2e/index.html. */
 async function runAcceptance(browser, base) {
-  const tab = await openTab(browser);
+  const tab = await openTab(browser, { unlocked: false }); // the run starts at the PIN page and enters the PIN itself
   await tab.open(`${base}/tests/e2e/`);
   await tab.until("/^(PASS|FAIL)/.test(document.title)", "the acceptance run to finish", 120_000);
   const result = JSON.parse(await tab.evaluate("document.getElementById('result-json').textContent"));
@@ -211,9 +223,9 @@ async function runAcceptance(browser, base) {
   await tab.close();
 }
 
-/** Add and delete an expense with real key presses only: Tab, Enter, Escape and typing. */
+/** Enter the PIN, add and delete an expense, and lock again with real key presses only. */
 async function runKeyboard(browser, base) {
-  const tab = await openTab(browser);
+  const tab = await openTab(browser, { unlocked: false });
   const checks = [];
   const check = (name, actual, expected) => {
     const pass = JSON.stringify(actual) === JSON.stringify(expected);
@@ -237,6 +249,15 @@ async function runKeyboard(browser, base) {
   try {
     await tab.open(`${base}/public/index.html?profile=keyboard&today=${TODAY}#/`);
     await tab.until("document.documentElement.dataset.ready === 'true'", "the app");
+
+    check("a new tab opens on the PIN page with focus in the field", [await h1(), await focused()], ["Enter PIN", "pin"]);
+    await tab.send("Input.insertText", { text: "1111" });
+    await press("Enter");
+    check("a wrong PIN and Enter stays locked", await tab.evaluate("[document.querySelector('h1').textContent, document.getElementById('pin-error').textContent, document.activeElement.id]"), ["Enter PIN", "That PIN is not right.", "pin"]);
+    await tab.send("Input.insertText", { text: ACCESS_PIN });
+    await press("Enter");
+    await tab.until("document.querySelector('h1')?.textContent === 'Dashboard'", "the dashboard after the PIN");
+    check("typing the PIN and pressing Enter opens the app", await h1(), "Dashboard");
 
     await tabTo("+ add");
     await press("Enter");
@@ -271,6 +292,10 @@ async function runKeyboard(browser, base) {
     await tab.until("document.getElementById('no-expenses') !== null", "the empty dashboard");
     check("Tab to Delete and Enter removes the expense", await h1(), "Dashboard");
     check("the status line says what happened", await tab.evaluate("document.getElementById('status').textContent"), "Deleted Keyboard only, $4.50.");
+
+    await tabTo("lock");
+    await press("Enter");
+    check("Enter on Lock returns to the PIN page with focus in the field", [await h1(), await focused()], ["Enter PIN", "pin"]);
   } catch (error) {
     check("keyboard pass ran to the end", error.message, "no error");
   }
@@ -326,14 +351,22 @@ async function runEdgeCases(browser, base) {
   problems.push(...tab.problems);
   await tab.close();
 
-  // 3. A browser that refuses storage altogether.
-  tab = await openTab(browser);
+  // 3. A browser that refuses storage altogether, session storage included.
+  tab = await openTab(browser, { unlocked: false });
   try {
     await tab.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: `Object.defineProperty(window, "localStorage", { get() { throw new DOMException("Access is denied.", "SecurityError"); } });`,
+      source: `for (const name of ["localStorage", "sessionStorage"]) {
+        Object.defineProperty(window, name, { get() { throw new DOMException("Access is denied.", "SecurityError"); } });
+      }`,
     });
     await tab.open(`${base}/public/index.html#/add`);
     await tab.until(ready, "the app without storage");
+    check("without storage the PIN page still appears", await tab.evaluate("document.querySelector('h1').textContent"), "Enter PIN");
+    await tab.evaluate(`(() => {
+      document.getElementById("pin").value = ${JSON.stringify(ACCESS_PIN)};
+      document.getElementById("unlock-form").requestSubmit();
+    })()`);
+    check("and the PIN unlocks it for this visit", await tab.evaluate("document.querySelector('h1').textContent"), "Add expense");
     check("blocked storage is announced", await tab.evaluate("document.getElementById('storage-blocked')?.textContent"), "This browser is not letting the site store data. Expenses cannot be saved here.");
     await tab.evaluate(`(() => {
       document.getElementById("amount").value = "3.50";
@@ -413,7 +446,7 @@ async function takeScreenshots(browser, base, directory) {
     phone: { width: 390, height: 844, deviceScaleFactor: 2, mobile: true },
     narrow: { width: 320, height: 640, deviceScaleFactor: 2, mobile: true },
   };
-  const views = { dashboard: "#/", expenses: "#/expenses", form: "#/add", "form-errors": "#/add", edit: "#/edit/8", delete: "#/expenses", empty: "#/" };
+  const views = { locked: "#/", "locked-error": "#/", dashboard: "#/", expenses: "#/expenses", form: "#/add", "form-errors": "#/add", edit: "#/edit/8", delete: "#/expenses", empty: "#/" };
   const url = (profile, hash) => `${base}/public/index.html?profile=${profile}&today=${TODAY}${hash}`;
 
   await tab.open(url("shots", "#/"));
@@ -426,6 +459,10 @@ async function takeScreenshots(browser, base, directory) {
       for (const [view, hash] of Object.entries(views)) {
         await tab.open(url(view === "empty" ? "shots-empty" : "shots", hash));
         await tab.until("document.documentElement.dataset.ready === 'true'", "the app");
+        if (view.startsWith("locked")) await tab.evaluate("document.getElementById('lock').click()");
+        if (view === "locked-error") {
+          await tab.evaluate("document.getElementById('pin').value = '0000'; document.getElementById('unlock-form').requestSubmit()");
+        }
         if (view === "form-errors") {
           await tab.evaluate("document.getElementById('amount').value = '12,50'; document.getElementById('expense-form').requestSubmit()");
         }

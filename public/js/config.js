@@ -32,4 +32,13 @@ export const MAX_DATE = "2099-12-31";
 /** How many expenses the dashboard lists. */
 export const RECENT_COUNT = 5;
 
+/**
+ * The PIN asked for before the site shows anything. Set it to "" to turn the PIN page off.
+ *
+ * This is a privacy screen, not security. The PIN is in this file, which every visitor's
+ * browser downloads, so anyone who looks at the page source can read it, and the expenses
+ * themselves sit unencrypted in the browser's storage. Do not use a PIN you use anywhere else.
+ */
+export const ACCESS_PIN = "2428";
+
 export const STORAGE_PREFIX = "expense-tracker";

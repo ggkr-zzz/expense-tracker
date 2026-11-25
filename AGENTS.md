@@ -24,7 +24,8 @@ If Node is not installed but VS Code is, its bundled runtime works as `node`:
 | `public/` | Everything that is deployed, and nothing else. |
 | `public/js/config.js` | Currency, locale, week start, categories, limits. |
 | `public/js/money.js`, `dates.js`, `ledger.js`, `chart.js`, `routes.js` | Pure logic. No DOM, no storage, no clock. |
-| `public/js/storage.js` | The only code that reads or writes `localStorage`. |
+| `public/js/storage.js` | The only code that reads or writes the saved ledger (`localStorage`). |
+| `public/js/lock.js` | The PIN page's logic. It keeps one flag in `sessionStorage` and nothing else. |
 | `public/js/app.js` | The only code that touches the page. |
 | `tests/*.test.js` | Unit tests for the pure modules and storage. |
 | `tests/e2e/` | The browser acceptance run and its headless runner. |
@@ -39,6 +40,7 @@ If Node is not installed but VS Code is, its bundled runtime works as `node`:
 - **Logic stays out of `app.js`.** A new calculation goes in a pure module with a test.
 - **Colour never carries meaning alone.** Chart colours were validated as a set; changing one means re-validating (see `docs/delivery.md`).
 - **`public/` stays self-contained.** Relative URLs only, no third-party requests.
+- **The PIN is a privacy screen, not security.** It ships in `config.js` to every visitor. Never describe it as protection, never put a real secret behind it, and render nothing from the ledger while the site is locked.
 
 ## Working here
 

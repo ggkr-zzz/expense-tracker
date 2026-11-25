@@ -21,6 +21,7 @@ import {
   updateExpense,
   validateDraft,
 } from "./ledger.js";
+import { createLock } from "./lock.js";
 import { centsToInput, formatCents } from "./money.js";
 import { parseRoute } from "./routes.js";
 import { browserStorage, createLedgerStore, storageKeys } from "./storage.js";
@@ -32,6 +33,8 @@ const main = byId("main");
 const alerts = byId("alerts");
 const statusLine = byId("status");
 const themeToggle = byId("theme-toggle");
+const lockButton = byId("lock");
+const navigation = document.querySelector("nav");
 const dialog = byId("confirm");
 
 // ?profile=<name> selects a separate ledger and ?today=YYYY-MM-DD fixes the date.
@@ -41,6 +44,7 @@ const todayOverride = isValidDate(params.get("today")) ? params.get("today") : n
 const keys = storageKeys(params.get("profile"));
 const storage = browserStorage();
 const store = createLedgerStore(storage, keys.ledger);
+const lock = createLock(browserStorage("sessionStorage")); // the PIN page; see config.js
 const categoryByName = new Map(CATEGORIES.map((category) => [category.name, category]));
 
 const currentDate = () => todayOverride ?? localISODate(new Date());
@@ -493,6 +497,40 @@ function notFoundView() {
   };
 }
 
+/** Shown instead of every view until the PIN is entered. Nothing from the ledger is on the page. */
+function lockedView() {
+  const pin = h("input", { id: "pin", name: "pin", type: "password", inputmode: "numeric", autocomplete: "off", required: true, "aria-describedby": "pin-error" });
+  const error = h("p", { class: "error", id: "pin-error", role: "alert" });
+
+  function unlock(event) {
+    event.preventDefault();
+    if (lock.unlock(pin.value)) {
+      announce("Unlocked.");
+      sync();
+      render({ focus: true }); // the view the address asked for
+      return;
+    }
+    error.textContent = pin.value.trim() === "" ? "Enter the PIN." : "That PIN is not right.";
+    pin.setAttribute("aria-invalid", "true");
+    pin.value = "";
+    pin.focus();
+  }
+
+  return {
+    title: "Locked",
+    focus: pin,
+    nodes: [
+      heading("Enter PIN"),
+      h(
+        "form",
+        { class: "expense-form", id: "unlock-form", novalidate: true, onsubmit: unlock },
+        field("PIN", pin, error),
+        h("div", { class: "actions" }, h("button", { type: "submit", class: "btn primary", id: "unlock" }, "unlock")),
+      ),
+    ],
+  };
+}
+
 /** Shown instead of every view while the saved data cannot be read. Nothing is written. */
 function unreadableView() {
   const saved = h("textarea", { id: "saved-data", readonly: true, rows: 8, "aria-label": "Saved data" });
@@ -562,13 +600,17 @@ function render({ focus = false } = {}) {
   if (route.name === "dashboard") state.returnTo = "#/";
   if (route.name === "expenses") state.returnTo = "#/expenses";
 
+  const locked = lock.isLocked();
   let view;
-  if (state.status === "unreadable") view = unreadableView();
+  if (locked) view = lockedView();
+  else if (state.status === "unreadable") view = unreadableView();
   else if (route.name === "dashboard") view = dashboardView();
   else if (route.name === "expenses") view = expensesView();
   else if (route.name === "form") view = formView(route.id);
   else view = notFoundView();
 
+  navigation.hidden = locked;
+  lockButton.hidden = locked || !lock.enabled;
   renderAlerts();
   main.replaceChildren(...view.nodes);
   document.title = `${view.title} — Expense Tracker`;
@@ -587,6 +629,7 @@ function render({ focus = false } = {}) {
 function refresh() {
   const statusBefore = state.status;
   if (!sync()) return;
+  if (lock.isLocked()) return; // the PIN page shows nothing that could be out of date
   // Redrawing an open form would throw away what is being typed. Saving re-reads storage anyway.
   if (state.route.name === "form" && state.status === statusBefore) return;
   render();
@@ -664,6 +707,13 @@ byId("skip").addEventListener("click", (event) => {
   main.focus();
 });
 
+lockButton.addEventListener("click", () => {
+  lock.lock();
+  state.filters = { ...NO_FILTERS }; // a search term is not left behind for the next person
+  announce("");
+  render({ focus: true });
+});
+
 showTheme(savedTheme() ?? (systemDark.matches ? "dark" : "light"));
 sync();
-render({ focus: parseRoute(location.hash).name === "form" });
+render({ focus: lock.isLocked() || parseRoute(location.hash).name === "form" });

@@ -12,10 +12,10 @@ export function storageKeys(profile = null) {
   return { ledger: `${base}.ledger.v1`, theme: `${STORAGE_PREFIX}.theme` };
 }
 
-/** window.localStorage, or null when the browser blocks it. */
-export function browserStorage() {
+/** window.localStorage (or sessionStorage), or null when the browser blocks it. */
+export function browserStorage(name = "localStorage") {
   try {
-    return globalThis.localStorage ?? null;
+    return globalThis[name] ?? null;
   } catch {
     return null;
   }

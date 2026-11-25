@@ -1,6 +1,10 @@
 // Browser acceptance run for docs/delivery.md. It drives the real app in the iframe through
 // its own controls and compares what a person would see with known answers.
 // It uses ?profile=e2e, so it reads and writes a ledger of its own, and ?today= for a fixed date.
+// It starts locked and enters the PIN itself, then puts this tab's lock state back at the end.
+
+import { ACCESS_PIN } from "../../public/js/config.js";
+import { UNLOCKED_KEY } from "../../public/js/lock.js";
 
 const TODAY = "2026-04-08"; // a Wednesday
 const LEDGER_KEY = "expense-tracker.e2e.ledger.v1";
@@ -137,7 +141,49 @@ const FIXTURE_TOTALS = { today: "$0.20", week: "$2.30", month: "$3.30", all: "$7
 // ---- the run ---------------------------------------------------------------------------
 
 const themeBefore = localStorage.getItem(THEME_KEY);
+const unlockedBefore = sessionStorage.getItem(UNLOCKED_KEY); // this page and the app share one tab's session
 for (const key of [LEDGER_KEY, ...backupKeys()]) localStorage.removeItem(key);
+sessionStorage.removeItem(UNLOCKED_KEY);
+
+await section("PIN page", async () => {
+  const tryPin = (value) => {
+    type("#pin", value);
+    $("#unlock-form").requestSubmit();
+  };
+
+  await load("#/expenses"); // a direct link, opened while locked
+  check("asks for the PIN before showing anything", text("h1"), "Enter PIN");
+  check("the page title gives nothing away", doc().title, "Locked — Expense Tracker");
+  check("navigation and the lock control are hidden", [$("nav").hidden, $("#lock").hidden], [true, true]);
+  check("nothing from the app is on the page", $$(".tiles, .rows, .filters, #no-expenses, #expense-form").length, 0);
+  check("focus starts in the PIN field", doc().activeElement.id, "pin");
+  check("the PIN is masked and labelled", [$("#pin").type, $("#pin").labels[0]?.textContent], ["password", "PIN"]);
+
+  tryPin("");
+  check("an empty PIN is refused", text("#pin-error"), "Enter the PIN.");
+  for (const wrong of ["0000", "242", "24280", "2429"]) {
+    tryPin(wrong);
+    check(`"${wrong}" is refused, the field is cleared and keeps focus`, [text("h1"), text("#pin-error"), $("#pin").value, doc().activeElement.id], ["Enter PIN", "That PIN is not right.", "", "pin"]);
+  }
+  check("a wrong PIN is not remembered", sessionStorage.getItem(UNLOCKED_KEY), null);
+
+  tryPin(ACCESS_PIN);
+  await until(() => text("h1") === "Expenses", "the app to open");
+  check("the right PIN opens the view the link asked for", [text("h1"), win().location.hash], ["Expenses", "#/expenses"]);
+  check("navigation and the lock control appear", [$("nav").hidden, $("#lock").hidden], [false, false]);
+
+  await load("#/");
+  check("a reload in the same tab does not ask again", text("h1"), "Dashboard");
+
+  $("#lock").click();
+  check("locking returns to the PIN page at once", [text("h1"), $$(".tiles").length, $("nav").hidden, doc().activeElement.id], ["Enter PIN", 0, true, "pin"]);
+  await load("#/");
+  check("and it stays locked after a reload", text("h1"), "Enter PIN");
+
+  tryPin(` ${ACCESS_PIN} `);
+  await until(() => text("h1") === "Dashboard", "the app to open");
+  check("spaces around the PIN are ignored", text("h1"), "Dashboard");
+});
 
 await section("A new ledger", async () => {
   await load();
@@ -492,6 +538,8 @@ await section("Navigation and structure", async () => {
 for (const key of [LEDGER_KEY, ...backupKeys()]) localStorage.removeItem(key);
 if (themeBefore === null) localStorage.removeItem(THEME_KEY);
 else localStorage.setItem(THEME_KEY, themeBefore);
+if (unlockedBefore === null) sessionStorage.removeItem(UNLOCKED_KEY);
+else sessionStorage.setItem(UNLOCKED_KEY, unlockedBefore);
 
 const failed = results.filter((result) => !result.pass);
 const status = failed.length === 0 ? "pass" : "fail";

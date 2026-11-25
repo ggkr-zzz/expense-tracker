@@ -12,6 +12,7 @@ A minimal expense tracker with a terminal look. It is a static site: no server, 
 - **Dashboard**: totals for today, this week (Monday to Sunday), this month and all time; a pie chart and table of spending by category; the five most recent expenses.
 - **Expense list**: every expense, newest first, with search, category and date-range filters, and the count and sum of what matches.
 - **Light and dark themes**: follows your system the first time, then remembers your choice.
+- **A PIN page**: the site asks for a PIN before it shows anything, and a Lock control puts it back. See the caution under "Where your data lives".
 - Works with a keyboard, a mouse or a touch screen, down to a 320 px wide phone.
 
 Amounts are in Australian dollars. `docs/product.md` has the full behaviour.
@@ -62,6 +63,8 @@ Expenses are saved in your browser's local storage for the address you opened th
 - Another browser or device shows its own, separate ledger. There is no sync.
 - Clearing the site's data in your browser deletes the ledger. There is no export yet.
 - Every Vercel preview URL is a separate address with separate storage. Use the production address for real data.
+
+**The PIN is a privacy screen, not a lock.** It is written in `public/js/config.js`, which every visitor's browser downloads, so anyone who views the page source (or this repository) can read it. It keeps casual visitors out and nothing more. Do not use a PIN you use for anything else. To change it, edit `ACCESS_PIN`; set it to `""` to remove the PIN page.
 
 ## Change the defaults
 

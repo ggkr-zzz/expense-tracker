@@ -18,11 +18,12 @@
 
       <header class="top">
         <p class="brand"><a href="#/">~/expenses</a><span class="cursor" aria-hidden="true"></span></p>
-        <nav aria-label="Main">
+        <nav aria-label="Main" hidden>
           <a href="#/" data-nav="dashboard">dashboard</a>
           <a href="#/expenses" data-nav="expenses">expenses</a>
           <a href="#/add" data-nav="add">+ add</a>
         </nav>
+        <button type="button" id="lock" hidden>lock</button>
         <button type="button" id="theme-toggle" role="switch" aria-checked="false">dark mode</button>
       </header>
 

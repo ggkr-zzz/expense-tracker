@@ -64,8 +64,9 @@ Further cases with fixed answers:
 | Form validation messages, focus, values kept | | acceptance pass |
 | Failed write, unreadable data, newer version, second tab | yes (storage) | acceptance pass |
 | Theme toggle and persistence, navigation, focus, labels | | acceptance pass |
-| Add and delete using only Tab, Enter, Escape and typing | | keyboard pass |
-| Bare address, real clock, midnight passing, storage blocked | | edge-case pass |
+| PIN page: what matches, what a tab remembers, locking | yes (`tests/lock.test.js`) | acceptance pass, starting locked |
+| Enter the PIN, add, delete and lock using only Tab, Enter, Escape and typing | | keyboard pass |
+| Bare address, real clock, midnight passing, all storage blocked | | edge-case pass |
 | No script errors, failed requests or policy violations | | every pass |
 | Layout in both themes at 1100, 390 and 320 px | | `--screenshots`, then look |
 
@@ -100,8 +101,8 @@ To deploy, either import the Git repository at vercel.com/new and accept the def
 
 Deployed checks, to run on the preview URL before calling it released:
 
-1. The dashboard loads with no errors in the browser console.
-2. Add an expense, reload, and it is still there. Edit it, switch theme, reload again.
+1. The site opens on the PIN page. A wrong PIN is refused; the right one opens the dashboard, with no errors in the browser console.
+2. Add an expense, reload, and it is still there without the PIN being asked for again. Edit it, switch theme, reload again.
 3. Open `<url>/#/expenses` directly in a new tab.
 4. `<url>/tests/e2e/`, `<url>/docs/product.md` and `<url>/package.json` all return 404.
 5. `curl -sI <url>` shows `x-content-type-options: nosniff` and `x-frame-options: DENY`.
@@ -148,3 +149,18 @@ Not verified:
 - **Other browsers and real devices.** Only Chrome on macOS was used. Safari, Firefox, iOS and Android have not been tried.
 - **Assistive technology.** Labels, roles, focus order and keyboard operation were checked by script. No screen reader was used, and forced-colours mode was not tried.
 - **`npm test` and `npm run test:e2e` as typed.** npm is not installed here; the commands they run were executed directly with Node 24. Node 20 and 22 were not tried.
+
+### 2026-11-26 — PIN page
+
+Same machine and versions as above.
+
+| What was run | Result |
+|---|---|
+| `node --test` | 81 of 81 tests pass |
+| `node tests/e2e/run.js`, acceptance pass, now starting at the PIN page | 146 of 146 checks pass |
+| `node tests/e2e/run.js`, keyboard pass, now entering the PIN and locking by keyboard | 13 of 13 checks pass |
+| `node tests/e2e/run.js`, edge cases, now with session storage blocked as well | 13 of 13 checks pass |
+| Script errors, failed requests and Content-Security-Policy violations | none reported |
+| `--screenshots`: 9 views × 2 themes × 4 widths | 72 saved; the PIN page, its error state and the header with the Lock control looked at |
+
+Not verified: the same items as the first build. The PIN page was reviewed by its implementer only.

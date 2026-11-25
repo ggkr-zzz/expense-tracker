@@ -14,6 +14,7 @@ A person opens the site, records an expense in one short form, sees how much the
 | Week | Monday to Sunday. |
 | Categories | Food, Transport, Bills, Shopping, Entertainment, Health, Other. Fixed list. |
 | Theme | Light and dark. The first visit follows the operating system; the toggle stores an explicit choice. |
+| PIN | The site asks for a four-digit PIN before it shows anything. The PIN is a constant in the code. It is a privacy screen, not security: see "PIN page". |
 | Runtime | Static files only. No framework, no build step, no dependencies, no third-party requests. |
 
 Currency, locale, week start, categories and limits are constants in `public/js/config.js`.
@@ -55,6 +56,17 @@ The ledger is `{ version: 1, nextId, expenses }`, stored as JSON under `expense-
 | Storage blocked by the browser | A standing notice says expenses cannot be saved. Saving fails as above. |
 | Saved data unreadable (bad JSON, unknown version, invalid record) | Normal views are replaced by a notice. The saved text is shown and left untouched, and no write can happen. The owner can start a new ledger, which first copies the old text to `expense-tracker.ledger.v1.backup-<timestamp>`. |
 | Edit link for an expense that no longer exists | A message and a link back, no form. |
+
+## PIN page
+
+Every new tab opens on a page that asks for the PIN, whatever address was requested. Until the PIN is entered, the navigation is hidden, the page title says only "Locked", and nothing from the ledger is on the page.
+
+- The PIN is `ACCESS_PIN` in `public/js/config.js`. Setting it to an empty string turns the PIN page off.
+- The right PIN opens the view the address asked for. Spaces around it are ignored. A wrong or empty PIN shows a message, clears the field and keeps focus there. There is no limit on attempts.
+- The tab stays unlocked across reloads and is forgotten when the tab closes (session storage). Each tab asks separately. If the browser blocks session storage, the PIN works but is asked for again after every reload.
+- A Lock control in the header returns to the PIN page at once and clears the list filters.
+
+**What it does not do.** The site is static, so the PIN ships to every visitor inside the page's JavaScript, and the expenses sit unencrypted in the browser's storage. Anyone who views the page source can read the PIN, and anyone with the device can read the storage directly. The PIN keeps a casual visitor or someone glancing at an open laptop out; it does not protect against anyone who looks. It must not be a PIN used anywhere else. Real protection would need a server or a hosting-level password.
 
 ## Views
 
@@ -124,4 +136,5 @@ Accounts and sync, multiple currencies, custom categories, budgets, recurring ex
 | Assign category; total by category; pie chart | Data; Category chart |
 | Views: dashboard, expense list, expense form | Views |
 | Terminal look, optional dark mode | Decisions → Form factor, Theme; Look and accessibility |
+| A PIN page before entering the site, PIN hardcoded | Decisions → PIN; PIN page |
 | Deploy on Vercel | `docs/delivery.md` → Deployment |

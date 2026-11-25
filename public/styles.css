@@ -195,6 +195,29 @@ nav a[aria-current="page"]:hover {
   color: var(--bg);
 }
 
+#lock {
+  padding: 0.25em 0;
+}
+
+#lock::before {
+  content: "[";
+  content: "[" / "";
+}
+
+#lock::after {
+  content: "]";
+  content: "]" / "";
+}
+
+#lock:hover {
+  color: var(--accent);
+}
+
+#pin {
+  max-width: 14ch;
+  letter-spacing: 0.3em;
+}
+
 #theme-toggle {
   padding: 0.25em 0;
 }
