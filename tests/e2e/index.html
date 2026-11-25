@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Running acceptance checks…</title>
+    <link rel="icon" href="../../public/favicon.svg" type="image/svg+xml">
+    <style>
+      body { margin: 1rem; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #fff; color: #191919; }
+      h1 { font-size: 1rem; margin: 0 0 0.5rem; }
+      #summary { font-weight: 700; margin: 0 0 1rem; }
+      #summary[data-status="pass"] { color: #006c10; }
+      #summary[data-status="fail"] { color: #b3261e; }
+      iframe { width: 100%; height: 620px; border: 1px solid #c2c2c2; }
+      h2 { font-size: 1em; margin: 1rem 0 0.25rem; }
+      ol { margin: 0; padding-left: 4ch; }
+      li.pass { color: #666; }
+      li.fail { color: #b3261e; font-weight: 700; }
+      li pre { margin: 0.25rem 0 0.5rem; white-space: pre-wrap; font: inherit; font-weight: 400; }
+      #result-json { display: none; }
+    </style>
+  </head>
+  <body>
+    <h1>Expense Tracker — browser acceptance run</h1>
+    <p id="summary" data-status="running">Running…</p>
+    <p>
+      Drives the real app below through its own controls, using the separate <code>e2e</code> ledger and a fixed date
+      (Wednesday 8 April 2026). Your own expenses are not touched. Serve the repository root over HTTP to use this page.
+    </p>
+    <iframe id="app" title="Expense Tracker under test"></iframe>
+    <div id="report"></div>
+    <pre id="result-json"></pre>
+    <script type="module" src="e2e.js"></script>
+  </body>
+</html>

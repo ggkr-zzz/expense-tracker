@@ -1,0 +1,12 @@
+{
+  "name": "expense-tracker",
+  "version": "1.0.0",
+  "description": "A minimal expense tracker with a terminal look. Static files; data stays in the browser.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 4173",
+    "test": "node --test",
+    "test:e2e": "node tests/e2e/run.js"
+  }
+}

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="A minimal expense tracker. Your expenses stay in this browser.">
+    <title>Expense Tracker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script src="js/theme-init.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <a class="skip" id="skip" href="#main">Skip to content</a>
+
+      <header class="top">
+        <p class="brand"><a href="#/">~/expenses</a><span class="cursor" aria-hidden="true"></span></p>
+        <nav aria-label="Main">
+          <a href="#/" data-nav="dashboard">dashboard</a>
+          <a href="#/expenses" data-nav="expenses">expenses</a>
+          <a href="#/add" data-nav="add">+ add</a>
+        </nav>
+        <button type="button" id="theme-toggle" role="switch" aria-checked="false">dark mode</button>
+      </header>
+
+      <div id="alerts"></div>
+
+      <main id="main" tabindex="-1">
+        <noscript><p>This app needs JavaScript to run.</p></noscript>
+      </main>
+
+      <footer class="status">
+        <p id="status" role="status"></p>
+        <p>Expenses are saved in this browser only.</p>
+      </footer>
+    </div>
+
+    <dialog id="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-detail">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-detail"></p>
+      <div class="actions">
+        <button type="button" class="btn" id="confirm-cancel">cancel</button>
+        <button type="button" class="btn danger" id="confirm-ok"></button>
+      </div>
+    </dialog>
+  </body>
+</html>

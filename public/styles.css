@@ -1,0 +1,763 @@
+/* Expense Tracker. One flat background, monospace type, 1px borders.
+   Colours are documented in docs/product.md; chart colours were validated, so change them there first. */
+
+/* ---- tokens ---------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --ink: #191919;
+  --muted: #666666; /* secondary text and control borders: 5.7:1 on --bg */
+  --border: #c2c2c2; /* panel borders, decorative */
+  --line: #e7e7e7; /* separators between rows */
+  --accent: #006c10; /* 6.7:1 on --bg */
+  --accent-ink: #ffffff;
+  --error: #b3261e; /* 6.5:1 on --bg */
+
+  --cat-food: #257de0;
+  --cat-transport: #f47230;
+  --cat-bills: #00b894;
+  --cat-shopping: #f2a600;
+  --cat-entertainment: #ee7fac;
+  --cat-health: #008a17;
+  --cat-other: #666666;
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #191919;
+  --ink: #efefef;
+  --muted: #9c9c9c; /* 6.4:1 on --bg */
+  --border: #474747;
+  --line: #303030;
+  --accent: #53c556; /* 7.9:1 on --bg */
+  --accent-ink: #191919;
+  --error: #ff8a80; /* 7.7:1 on --bg */
+
+  --cat-food: #338ced;
+  --cat-transport: #e76624;
+  --cat-bills: #00a888;
+  --cat-shopping: #d28e05;
+  --cat-entertainment: #e24d8b;
+  --cat-health: #0aac23;
+  --cat-other: #9c9c9c;
+}
+
+.c-food { --c: var(--cat-food); }
+.c-transport { --c: var(--cat-transport); }
+.c-bills { --c: var(--cat-bills); }
+.c-shopping { --c: var(--cat-shopping); }
+.c-entertainment { --c: var(--cat-entertainment); }
+.c-health { --c: var(--cat-health); }
+.c-other { --c: var(--cat-other); }
+
+/* ---- base ------------------------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 0.9375rem/1.5 var(--mono);
+  overflow-wrap: break-word; /* a long unbroken word wraps instead of widening the page */
+}
+
+[hidden] {
+  display: none !important;
+}
+
+a {
+  color: inherit;
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Headings and the main region receive focus from the script, not from the Tab key. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
+p {
+  margin: 0;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 88ch;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.skip {
+  position: absolute;
+  left: -999rem;
+  padding: 0.35em 1ch;
+  background: var(--bg);
+}
+
+.skip:focus {
+  left: 1rem;
+  top: 0.5rem;
+  z-index: 1;
+}
+
+/* ---- header ---------------------------------------------------------------------------- */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 2ch;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  margin-right: auto;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.brand a {
+  text-decoration: none;
+}
+
+.cursor {
+  display: inline-block;
+  width: 1ch;
+  height: 1.1em;
+  margin-left: 0.5ch;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  animation: blink 1.2s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor {
+    animation: none;
+  }
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1ch;
+}
+
+nav a {
+  padding: 0.25em 0;
+  text-decoration: none;
+}
+
+/* The second declaration gives the brackets an empty spoken alternative where supported. */
+nav a::before {
+  content: "[";
+  content: "[" / "";
+}
+
+nav a::after {
+  content: "]";
+  content: "]" / "";
+}
+
+nav a[aria-current="page"],
+nav a[aria-current="page"]:hover {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+#theme-toggle {
+  padding: 0.25em 0;
+}
+
+#theme-toggle::before {
+  content: "[ ] ";
+  content: "[ ] " / "";
+}
+
+#theme-toggle[aria-checked="true"]::before {
+  content: "[x] ";
+  content: "[x] " / "";
+}
+
+#theme-toggle:hover {
+  color: var(--accent);
+}
+
+/* ---- views ----------------------------------------------------------------------------- */
+
+main {
+  display: grid;
+  flex: 1;
+  gap: 1.5rem;
+  align-content: start;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: lowercase;
+}
+
+h1::before {
+  color: var(--accent);
+  content: "$ ";
+  content: "$ " / "";
+}
+
+.panel {
+  min-width: 0;
+  margin-top: 0.75em;
+  padding: 0 1.5ch 1rem;
+  border: 1px solid var(--border);
+}
+
+/* The title sits on the top border, like a labelled box in a terminal UI. */
+.panel > h2 {
+  width: fit-content;
+  margin: -0.75em 0 0.6rem;
+  padding: 0 1ch;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 1em;
+  font-weight: 400;
+  text-transform: lowercase;
+}
+
+.panel > * + * {
+  margin-top: 0.75rem;
+}
+
+.notice {
+  padding: 0.5rem 1.5ch;
+  border: 1px solid var(--error);
+}
+
+.summary,
+.empty,
+.more {
+  color: var(--muted);
+}
+
+/* ---- totals ---------------------------------------------------------------------------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem 2ch;
+  margin: 0;
+}
+
+.tile dt {
+  color: var(--muted);
+}
+
+.tile dd {
+  margin: 0;
+}
+
+.tile-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.tile-detail {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* ---- category chart -------------------------------------------------------------------- */
+
+.chart {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem 3ch;
+  align-items: center;
+}
+
+.pie {
+  display: block;
+  width: 12rem;
+  height: 12rem;
+}
+
+/* The stroke is the background colour, so neighbouring slices are separated by a 2px gap. */
+.slice {
+  fill: var(--c);
+  stroke: var(--bg);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: opacity 0.12s;
+}
+
+.chart.has-active .slice:not(.is-active) {
+  opacity: 0.3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slice {
+    transition: none;
+  }
+}
+
+.slice-key {
+  fill: var(--ink);
+  font: 700 10px var(--mono);
+}
+
+.legend {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.legend th,
+.legend td {
+  padding: 0.2em 0;
+  font-weight: 400;
+  text-align: left;
+}
+
+.legend .num {
+  padding-left: 2ch;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.legend thead th {
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.legend tfoot th,
+.legend tfoot td {
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+
+.legend .is-zero {
+  color: var(--muted);
+}
+
+.legend .is-active {
+  background: var(--line);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  margin-right: 1ch;
+  background: var(--c);
+}
+
+.key {
+  display: inline-block;
+  width: 2ch;
+  color: var(--muted);
+}
+
+/* ---- expense rows ---------------------------------------------------------------------- */
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Wide screens: five aligned columns. The grouping elements dissolve so every cell sits
+   directly in the row's grid. Narrow screens regroup them into two lines (see the end). */
+.row {
+  display: grid;
+  grid-template-columns: 10ch minmax(0, 1fr) 15ch 13ch auto;
+  gap: 0 2ch;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row-main,
+.row-sub,
+.row-meta {
+  display: contents;
+}
+
+.row-date {
+  grid-area: 1 / 1;
+}
+
+.row-description {
+  grid-area: 1 / 2;
+}
+
+.row-category {
+  grid-area: 1 / 3;
+}
+
+.row-amount {
+  grid-area: 1 / 4;
+}
+
+.row-actions {
+  grid-area: 1 / 5;
+}
+
+.row-date,
+.row-category {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.row-description {
+  overflow-wrap: anywhere;
+}
+
+.row-amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row-actions {
+  display: flex;
+  gap: 1.5ch;
+  justify-content: flex-end;
+}
+
+/* ---- controls -------------------------------------------------------------------------- */
+
+button {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.35em 1.5ch;
+  border: 1px solid var(--muted);
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.btn:hover {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.btn.primary:hover {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.btn.danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.btn.danger:hover {
+  background: var(--error);
+  color: var(--bg);
+}
+
+.btn:disabled {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: default;
+}
+
+.link {
+  padding: 0.15em 0;
+  text-decoration: underline;
+}
+
+.link:hover {
+  color: var(--accent);
+}
+
+.link.danger {
+  color: var(--error);
+}
+
+.link.danger:hover {
+  background: var(--error);
+  color: var(--bg);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5ch;
+  align-items: center;
+}
+
+label {
+  color: var(--muted);
+}
+
+/* 16px, not the page's 15px: iOS Safari zooms the page when a smaller field takes focus. */
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.4em 1ch;
+  border: 1px solid var(--muted);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* One height for every single-line control, so labels in a row of fields line up. */
+input,
+select {
+  height: 2.6em;
+}
+
+textarea {
+  display: block;
+  resize: vertical;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+  border-color: var(--error);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.error {
+  color: var(--error);
+}
+
+.error:empty {
+  display: none;
+}
+
+.error::before {
+  content: "! ";
+  content: "! " / "";
+}
+
+.expense-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 46ch;
+}
+
+/* Four equal columns leave a date field enough room; the clear button sits underneath. */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem 2ch;
+  align-items: end;
+}
+
+.filters .btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+details > summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+details > * + * {
+  margin-top: 0.5rem;
+}
+
+/* ---- dialog and status line ------------------------------------------------------------ */
+
+dialog {
+  max-width: min(52ch, calc(100vw - 2rem));
+  padding: 1rem 2ch;
+  border: 1px solid var(--ink);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1em;
+}
+
+dialog p {
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 3ch;
+  justify-content: space-between;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+#status {
+  color: var(--ink);
+}
+
+#status:not(:empty)::before {
+  color: var(--accent);
+  content: "> ";
+  content: "> " / "";
+}
+
+/* ---- narrow screens -------------------------------------------------------------------- */
+
+/* Below the full 88ch column there is no room for five columns per expense. */
+@media (max-width: 52rem) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Two lines per expense: description and amount, then date, category and actions.
+     When the second line is too long for the screen, the actions drop to a line of their own. */
+  .row {
+    display: block;
+    padding: 0.45rem 0;
+  }
+
+  .row-main,
+  .row-sub {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 2ch;
+  }
+
+  .row-sub {
+    flex-wrap: wrap;
+  }
+
+  .row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.5ch;
+  }
+
+  .row-actions {
+    margin-left: auto;
+  }
+
+  .link {
+    padding: 0.3em 0;
+  }
+}
+
+@media (max-width: 40rem) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  .legend {
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 24rem) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tile-value {
+    font-size: 1.25rem;
+  }
+
+  /* Keep the category table inside a 320px screen: slightly smaller type and tighter columns.
+     Only an amount in the hundreds of thousands still forces a name to break mid-word. */
+  .legend {
+    font-size: 0.875rem;
+  }
+
+  .legend .num {
+    padding-left: 1ch;
+  }
+
+  .legend th[scope="row"] {
+    overflow-wrap: anywhere;
+  }
+}
